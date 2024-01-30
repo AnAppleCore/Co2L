@@ -15,7 +15,7 @@ import math
 import random
 import numpy as np
 
-import tensorboard_logger as tb_logger
+# import tensorboard_logger as tb_logger
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -88,7 +88,7 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet18')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'tiny-imagenet', 'path'], help='dataset')
+                        choices=['cifar10', 'cifar100', 'tiny-imagenet', 'path'], help='dataset')
     parser.add_argument('--mean', type=str, help='mean of dataset in path in form of str tuple')
     parser.add_argument('--std', type=str, help='std of dataset in path in form of str tuple')
     parser.add_argument('--data_folder', type=str, default=None, help='path to custom dataset')
@@ -117,6 +117,10 @@ def parse_option():
     if opt.dataset == 'cifar10':
         opt.n_cls = 10
         opt.cls_per_task = 2
+        opt.size = 32
+    elif opt.dataset == 'cifar100':
+        opt.n_cls = 100
+        opt.cls_per_task = 10
         opt.size = 32
     elif opt.dataset == 'tiny-imagenet':
         opt.n_cls = 200
@@ -212,6 +216,13 @@ def set_replay_samples(opt, model, prev_indices=None):
                                          download=True)
         val_targets = np.array(val_dataset.targets)
 
+    elif opt.dataset == 'cifar100':
+        subset_indices = []
+        val_dataset = datasets.CIFAR100(root=opt.data_folder,
+                                         transform=val_transform,
+                                         download=True)
+        val_targets = np.array(val_dataset.targets)
+
     elif opt.dataset == 'tiny-imagenet':
         subset_indices = []
         val_dataset = TinyImagenet(root=opt.data_folder,
@@ -281,6 +292,9 @@ def set_loader(opt, replay_indices):
     if opt.dataset == 'cifar10':
         mean = (0.4914, 0.4822, 0.4465)
         std = (0.2023, 0.1994, 0.2010)
+    elif opt.dataset == 'cifar100':
+        mean = (0.4914, 0.4822, 0.4465)
+        std = (0.2023, 0.1994, 0.2010)
     elif opt.dataset == 'tiny-imagenet':
         mean = (0.4802, 0.4480, 0.3975)
         std = (0.2770, 0.2691, 0.2821)
@@ -314,6 +328,22 @@ def set_loader(opt, replay_indices):
         _train_dataset = datasets.CIFAR10(root=opt.data_folder,
                                          transform=TwoCropTransform(train_transform),
                                          download=True)
+        for tc in target_classes:
+            target_class_indices = np.where(np.array(_train_dataset.targets) == tc)[0]
+            subset_indices += np.where(np.array(_train_dataset.targets) == tc)[0].tolist()
+
+        subset_indices += replay_indices
+
+        train_dataset =  Subset(_train_dataset, subset_indices)
+        print('Dataset size: {}'.format(len(subset_indices)))
+        uk, uc = np.unique(np.array(_train_dataset.targets)[subset_indices], return_counts=True)
+        print(uc[np.argsort(uk)])
+
+    elif opt.dataset == 'cifar100':
+        subset_indices = []
+        _train_dataset = datasets.CIFAR100(root=opt.data_folder,
+                                          transform=TwoCropTransform(train_transform),
+                                          download=True)
         for tc in target_classes:
             target_class_indices = np.where(np.array(_train_dataset.targets) == tc)[0]
             subset_indices += np.where(np.array(_train_dataset.targets) == tc)[0].tolist()
@@ -495,7 +525,7 @@ def main():
         print(len(replay_indices))
 
     # tensorboard
-    logger = tb_logger.Logger(logdir=opt.tb_folder, flush_secs=2)
+    # logger = tb_logger.Logger(logdir=opt.tb_folder, flush_secs=2)
 
     original_epochs = opt.epochs
 
@@ -546,8 +576,8 @@ def main():
             print('epoch {}, total time {:.2f}'.format(epoch, time2 - time1))
 
             # tensorboard logger
-            logger.log_value('loss_{target_task}'.format(target_task=target_task), loss, epoch)
-            logger.log_value('learning_rate_{target_task}'.format(target_task=target_task), optimizer.param_groups[0]['lr'], epoch)
+            # logger.log_value('loss_{target_task}'.format(target_task=target_task), loss, epoch)
+            # logger.log_value('learning_rate_{target_task}'.format(target_task=target_task), optimizer.param_groups[0]['lr'], epoch)
 
         # save the last model
         save_file = os.path.join(

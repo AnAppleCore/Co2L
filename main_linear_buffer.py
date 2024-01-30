@@ -21,13 +21,8 @@ from util import adjust_learning_rate, warmup_learning_rate, accuracy
 from util import set_optimizer
 
 from networks.resnet_big import SupConResNet, LinearClassifier
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 
-try:
-    import apex
-    from apex import amp, optimizers
-except ImportError:
-    pass
 
 
 def parse_option():
@@ -61,7 +56,7 @@ def parse_option():
     # model dataset
     parser.add_argument('--model', type=str, default='resnet18')
     parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'tiny-imagenet'], help='dataset')
+                        choices=['cifar10', 'cifar100', 'tiny-imagenet'], help='dataset')
     parser.add_argument('--size', type=int, default=32)
 
     # other setting
@@ -109,6 +104,10 @@ def parse_option():
     if opt.dataset == 'cifar10':
         opt.n_cls = 10
         opt.cls_per_task = 2
+        opt.size = 32
+    elif opt.dataset == 'cifar100':
+        opt.n_cls = 100
+        opt.cls_per_task = 10
         opt.size = 32
     elif opt.dataset == 'tiny-imagenet':
         opt.n_cls = 200
@@ -289,7 +288,7 @@ def main():
     print( optimizer.param_groups[0]['lr'])
 
     # tensorboard
-    writer = SummaryWriter(log_dir=opt.tb_folder)
+    # writer = SummaryWriter(log_dir=opt.tb_folder)
 
     # training routine
     for epoch in range(1, opt.epochs + 1):
@@ -313,7 +312,7 @@ def main():
         for cls, (cr, c) in enumerate(zip(val_corr, val_cnt)):
             if c > 0:
                 val_acc_stats[str(cls)] = cr / c * 100.
-        writer.add_scalars('val_acc', val_acc_stats, epoch)
+        # writer.add_scalars('val_acc', val_acc_stats, epoch)
 
     with open(os.path.join(opt.origin_ckpt, 'acc_buffer_{}.txt'.format(opt.target_task)), 'w') as f:
         out = 'best accuracy: {:.2f}\n'.format(best_acc)
