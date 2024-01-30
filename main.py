@@ -31,11 +31,11 @@ from networks.resnet_big import SupConResNet
 from losses_negative_only import SupConLoss
 
 
-try:
-    import apex
-    from apex import amp, optimizers
-except ImportError:
-    pass
+# try:
+#     import apex
+#     from apex import amp, optimizers
+# except ImportError:
+#     pass
 
 
 def parse_option():
@@ -391,8 +391,8 @@ def set_model(opt):
     criterion = SupConLoss(temperature=opt.temp)
 
     # enable synchronized Batch Normalization
-    if opt.syncBN:
-        model = apex.parallel.convert_syncbn_model(model)
+    # if opt.syncBN:
+    #     model = apex.parallel.convert_syncbn_model(model)
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
